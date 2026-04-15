@@ -1,0 +1,73 @@
+name: Docker Build & Push
+
+on: #uruchamianie
+  push: # przy pushowaniu 
+    branches: [ main ] # na maina
+  workflow_dispatch:  # + możliwość manualnego uruchomienia
+
+jobs: # co robi po uruchomieniu:
+  build-and-push:
+    name: Build Docker Images
+    runs-on: ubuntu-latest # uruchamia maszynę wirtualną na GitHub z ubuntu
+    
+    steps:
+      - name: Checkout code # pobiera kod z repozytorium (main)
+        uses: actions/checkout@v3
+      
+      # Set up Docker Buildx - konfiguruje Docker Buildx, zaawansowany builder Docker, który:
+      # - Wspiera budowanie wieloplatformowe (ARM, x86)
+      # - Umożliwia efektywne cachowanie warstw
+      # - Pozwala na równoległe budowanie obrazów
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to Azure Container Registry # logowanie do ACR przy pomocy sekretów
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      # Budowanie obrazów dla każdego serwisu:
+      #   - `context: ./backend` - wskazuje folder z Dockerfile i kodem
+      #   - `push: true` - automatycznie publikuje obraz do ACR po zbudowaniu
+      #   - `tags` - przypisuje DWIE etykiety do każdego obrazu:
+      #     - `latest` - zawsze pokazuje najnowszą wersję (łatwe wdrożenie)
+      #     - `${{ github.sha }}` - unikalny hash commita (np. `abc123def`) umożliwiający rollback do konkretnej wersji
+      #   - `cache-from` i `cache-to` - wykorzystuje cache z poprzednich buildów aby przyspieszyć budowanie (wykorzystuje już pobrane warstwy bazowe)
+
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/azure-app-backend:latest
+            ${{ secrets.ACR_LOGIN_SERVER }}/azure-app-backend:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.ACR_LOGIN_SERVER }}/azure-app-backend:latest
+          cache-to: type=inline
+      
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/azure-app-frontend:latest
+            ${{ secrets.ACR_LOGIN_SERVER }}/azure-app-frontend:${{ github.sha }}
+      
+      - name: Build and push Nginx image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./nginx
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/azure-app-nginx:latest
+            ${{ secrets.ACR_LOGIN_SERVER }}/azure-app-nginx:${{ github.sha }}
+      
+      - name: Images pushed successfully # wypisuje podsumowanie z nazwami opublikowanych obrazów
+        run: |
+          echo "✅ All images pushed to ACR!"
+          echo "Backend: ${{ secrets.ACR_LOGIN_SERVER }}/azure-app-backend:latest"
+          echo "Frontend: ${{ secrets.ACR_LOGIN_SERVER }}/azure-app-frontend:latest"
+          echo "Nginx: ${{ secrets.ACR_LOGIN_SERVER }}/azure-app-nginx:latest"
