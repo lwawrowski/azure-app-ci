@@ -1,0 +1,29 @@
+services:
+  backend:
+    build: ./backend
+    container_name: azure_app_backend
+    env_file:
+      - .env
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    container_name: azure_app_frontend
+    networks:
+      - app-network
+
+  nginx:
+    build: ./nginx
+    container_name: azure_app_nginx
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
