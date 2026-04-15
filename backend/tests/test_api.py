@@ -21,7 +21,7 @@ def test_hello_endpoint(client):
     
     assert response.status_code == 200
     data = response.get_json()
-    assert data['message'] == 'Hello World from Backend!'
+    assert data['message'] == 'Hello World from Sosnowiec!'
     assert data['status'] == 'success'
 
 
