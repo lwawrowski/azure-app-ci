@@ -1,0 +1,43 @@
+name: CI - Backend Tests
+
+# Kiedy uruchomić workflow
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-backend:
+    name: Test Backend API
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Krok 1: Pobierz kod z repo
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      # Krok 2: Zainstaluj Python
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      
+      # Krok 3: Zainstaluj zależności
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      # Krok 4: Uruchom testy
+      - name: Run tests with pytest
+        run: |
+          cd backend
+          pytest tests/ -v --cov=. --cov-report=term-missing
+      
+      # Krok 5: Raport z testów (opcjonalnie)
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "✅ Backend tests completed!"
